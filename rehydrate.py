@@ -1,4 +1,4 @@
-import json
+import csv
 import os
 
 import toml
@@ -63,14 +63,32 @@ def hydrate_file(file):
         return
 
     print('Hydrating {}'.format(file))
-    data = []
+    rows = []
 
     with open(os.path.join(in_dir, file), 'r') as in_file:
-        for tweet in twarc.hydrate(in_file):
-            data.append(json.dumps(tweet))
+        ids = in_file.read().splitlines()
 
-    with open(out_file_name, 'w') as out_file:
-        out_file.write('\n'.join(data) + '\n')
+    for tweet in twarc.hydrate(ids):
+        rows.append([
+            tweet['retweet_count'],
+            tweet['favorite_count'],
+            tweet['text'],
+            tweet['id'],
+            tweet['created_at'],
+            tweet['lang'],
+            tweet['is_quote_status'],
+            tweet['user']['id'],
+            tweet['user']['name'],
+            tweet['user']['screen_name']
+        ])
+
+    column_names = ['retweet_count', 'favorite_count', 'text', 'id', 'created_at', 'lang', 'is_quote_status', 'user_id',
+                    'user_name', 'user_screen_name']
+
+    with open(out_file_name, 'w', encoding='utf-8') as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow(column_names)
+        writer.writerows(rows)
 
 
 if __name__ == '__main__':
