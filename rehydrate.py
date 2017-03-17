@@ -54,6 +54,8 @@ def find_remaining_ids(in_file_name: str, out_file_name: str) -> Tuple[bool, Set
     if not os.path.isfile(out_file_name):
         return False, all_ids
 
+    print('Determining which tweets have already been read...')
+
     with open(out_file_name, 'r', encoding='utf-8') as out_file:
         reader = csv.DictReader(out_file)
         finished_ids = {row['id'] for row in reader}
