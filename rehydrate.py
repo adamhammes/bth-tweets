@@ -1,5 +1,6 @@
 import csv
 import os
+from typing import Dict, List, Set, Tuple
 
 import toml
 from twarc import Twarc
@@ -11,64 +12,115 @@ secrets_path = 'secrets.toml'
 twarc = None
 
 
-def read_secrets():
+def file_root_name(full_name: str) -> str:
+    """
+    Returns the name of the file without the extension.
+    Example: folder/id5.txt -> id5
+    """
+    file_name = os.path.basename(full_name)
+    return os.path.splitext(file_name)[0]
+
+
+def generate_out_file_name(file_root: str) -> str:
+    """
+    File roots are of the form 'bth_ids_%y-%m-%d'. This method simply returns the date portion with '.csv' added at the
+    end.
+    """
+    bth, ids, name = file_root.split('_')
+    return os.path.join(out_dir, name + '.csv')
+
+
+def find_remaining_ids(in_file_name: str, out_file_name: str) -> Tuple[bool, Set]:
+    """
+    Find all the tweets that have not yet been hydrated.
+
+    If this program is stopped for some reason, it's important to be able to pick up where it was previously. If we did
+    not filter out the ids contained in the out_file, we would be duplicating a lot of work and, more importantly,
+    wasting a lot of time.
+
+    :param in_file_name: The relative path to the file containing the tweet ids
+    :param out_file_name: The relative path to the file containing any rehydrated tweets
+    :return: (out_file_exists, remaining_ids), where `out_file_exists` indicates if the out file has been already
+    created and remaining_ids is an set of all the unprocessed ids in in_file.
+    """
+    assert os.path.isfile(in_file_name), '{} does not exist'.format(in_file_name)
+
+    if os.path.isfile(out_file_name.rstrip('.tmp')):
+        return True, set()
+
+    with open(in_file_name, 'r') as in_file:
+        all_ids = set(in_file.read().splitlines())
+
+    if not os.path.isfile(out_file_name):
+        return False, all_ids
+
+    with open(out_file_name, 'r', encoding='utf-8') as out_file:
+        reader = csv.DictReader(out_file)
+        finished_ids = {row['id'] for row in reader}
+
+    return True, sorted(all_ids - finished_ids)
+
+
+def flush_rows(out_file_name: str, rows: List[List[str]]) -> None:
+    """
+    Write all the tweets contained in `rows` to `out_file_name`, then clear `rows`.
+    """
+    assert os.path.isfile(out_file_name), '{} does not exist'.format(out_file_name)
+
+    with open(out_file_name, 'a', newline='\n', encoding='utf-8') as out_file:
+        writer = csv.writer(out_file)
+        writer.writerows(rows)
+
+    rows.clear()
+
+
+def read_secrets() -> Dict[str, str]:
     with open(secrets_path, 'r') as file:
         return toml.loads(file.read())
 
 
-def main():
-    """
-    Go through every file in the in_dir and try to rehydrate them. This will take a while, and should be only done with
-    a stable Internet connection.
-
-    :return: None
-    """
-    file_names = []
-
-    for filename in os.listdir(in_dir):
-        if filename.endswith('.txt'):
-            file_names.append(filename)
-
-    for file_name in file_names:
-        hydrate_file(file_name)
-
-
-def hydrate_file(file):
+def hydrate_file(file_root: str) -> None:
     """
     Given the name of the file containing tweet ids, attempt to download the tweets and their associated metadata, then
-    store the results in a json file.
+    store the results in a csv file. Only some of the fields returned by the Twitter API are written; for a list of
+    these, see `column_names`.
 
-    The infile (the file containing the tweet ids) will be looked for in the `in_dir`. The corresponding outfile (which
-    will contain the actual tweets and metadata) will have the same name and be stored in the `out_dir`.
-
-    Note that the outfile will have the same name and extension as the infile, even though it contains JSON data. This
-    is for the sole reason that I am lazy.
-
-    :param file: The name of the file to be hydrated, excluding any directories.
+    :param file_root: The name of the file to be hydrated, excluding any directories.
     :return: None
     """
 
-    # Because we may be running this program over the course of several days, it's important to not waste time
-    # rehydrating the same file over and over. To this end, I attempt to check if a file has already been hydrated by
-    #   (1) See if the corresponding hydrated file exists
-    #   (2) See if the hydrated file is non-empty
-    #
-    # Step (2) is necessary because the file may have been created but not yet written to.
-    out_file_name = os.path.join(out_dir, file)
-    if os.path.isfile(out_file_name) and os.path.getsize(out_file_name) > 0:
-        print('{} appears to have already been hydrated - skipping over.'.format(file))
-        print('If you would still like to hydrate this file, call')
-        print('hydrate_file({})'.format(file))
-        print('directly.\n')
+    in_file_path = os.path.join(in_dir, file_root + '.txt')
+
+    # The '.tmp' extension is added to indicate that the file is only partially rehydrated. The out file will be renamed
+    # once all the tweets have been processed.
+    out_file_path = generate_out_file_name(file_root) + '.tmp'
+
+    file_exists, remaining_ids = find_remaining_ids(in_file_path, out_file_path)
+
+    if not remaining_ids:
+        # All the tweets in this file have been rehydrated
         return
 
-    print('Hydrating {}'.format(file))
+    if not file_exists:
+        print('Hydrating {}'.format(file_root))
+        column_names = ['retweet_count', 'favorite_count', 'text', 'id', 'created_at', 'lang', 'is_quote_status',
+                        'user_id', 'user_name', 'user_screen_name']
+
+        with open(out_file_path, 'w', newline='\n', encoding='utf-8') as out_file:
+            writer = csv.writer(out_file)
+            writer.writerow(column_names)
+
+    else:
+        print('Resuming hydration of {}'.format(file_root))
+
+    # We "batch" the writes of the csv to prevent out of memory errors on the big files. The frequency of these writes
+    # is controlled by `rows_before_flushing`, which is set to 100 to match the batching of the twarc library.
     rows = []
+    rows_before_flushing = 100
+    iteration = 0
 
-    with open(os.path.join(in_dir, file), 'r') as in_file:
-        ids = in_file.read().splitlines()
-
-    for tweet in twarc.hydrate(ids):
+    for tweet in twarc.hydrate(remaining_ids):
+        iteration += 1
         rows.append([
             tweet['retweet_count'],
             tweet['favorite_count'],
@@ -82,13 +134,24 @@ def hydrate_file(file):
             tweet['user']['screen_name']
         ])
 
-    column_names = ['retweet_count', 'favorite_count', 'text', 'id', 'created_at', 'lang', 'is_quote_status', 'user_id',
-                    'user_name', 'user_screen_name']
+        if iteration % rows_before_flushing == 0:
+            flush_rows(out_file_path, rows)
+            print('Written {} out of {} tweets.'.format(iteration, len(remaining_ids)))
 
-    with open(out_file_name, 'w', encoding='utf-8') as out_file:
-        writer = csv.writer(out_file)
-        writer.writerow(column_names)
-        writer.writerows(rows)
+    flush_rows(out_file_path, rows)
+
+    # Remove the '.tmp' extension to mark that the file has been completely rehydrated
+    os.rename(out_file_path, out_file_path.rstrip('.tmp'))
+
+
+def main() -> None:
+    """
+    Go through every file in the in_dir and try to rehydrate them. This will take a while.
+    """
+
+    for filename in sorted(os.listdir(in_dir)):
+        if filename.endswith('.txt'):
+            hydrate_file(file_root_name(filename))
 
 
 if __name__ == '__main__':

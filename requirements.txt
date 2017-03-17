@@ -11,3 +11,4 @@ requests-oauthlib==0.8.0
 six==1.10.0
 toml==0.9.2
 twarc==1.0.7
+typing==3.5.3.0
