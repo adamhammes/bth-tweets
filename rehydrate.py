@@ -76,6 +76,11 @@ def flush_rows(out_file_name: str, rows: List[List[str]]) -> None:
     rows.clear()
 
 
+def print_hydration_status(iteration: int, total_tweets: int) -> None:
+    percent = float(iteration) / total_tweets * 100
+    print('Written {} out of {} tweets ({:.1f}%).'.format(iteration, total_tweets, percent))
+
+
 def read_secrets() -> Dict[str, str]:
     with open(secrets_path, 'r') as file:
         return toml.loads(file.read())
@@ -138,7 +143,7 @@ def hydrate_file(file_root: str) -> None:
 
         if iteration % rows_before_flushing == 0:
             flush_rows(out_file_path, rows)
-            print('Written {} out of {} tweets.'.format(iteration, len(remaining_ids)))
+            print_hydration_status(iteration, len(remaining_ids))
 
     flush_rows(out_file_path, rows)
 
