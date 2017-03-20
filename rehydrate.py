@@ -150,20 +150,25 @@ def hydrate_file(file_root):
     os.rename(out_file_path, out_file_path.rstrip('.tmp'))
 
 
-def main():
+def main(files):
     """
     Go through every file in the in_dir and try to rehydrate them. This will take a while.
     """
 
-    for filename in sorted(os.listdir(in_dir)):
-        if filename.endswith('.txt'):
-            hydrate_file(file_root_name(filename))
+    for filename in files:
+        hydrate_file(file_root_name(filename))
 
 
 if __name__ == '__main__':
     if not os.path.isdir(in_dir):
-        print('Error! Could not find the directory of the dehydrated tweets.')
-        print('Make sure that the folder is named {} and is in the same folder as your code.'.format(in_dir))
+        os.makedirs(in_dir)
+
+    in_files = [file for file in os.listdir(in_dir) if file.endswith('.txt')]
+
+    if len(in_files) < 365:
+        print('ERROR: Didn\'t find the expected number of id files in {}.'.format(in_dir))
+        print('Make sure that you have all the dehydrated tweet files ready.')
+        print('See "Usage" in README.md for instructions.')
         exit()
 
     secrets = read_secrets()
@@ -174,7 +179,7 @@ if __name__ == '__main__':
     access_token_secret = secrets['access_token_secret']
 
     if not all([consumer_key, consumer_secret, access_token, access_token_secret]):
-        print('Please make sure that you have filled in the API information in secrets.toml')
+        print('ERROR: Please make sure that you have filled in the API information in secrets.toml')
         print('Visit https://apps.twitter.com/ if you haven\'t generated these yet.')
         exit()
 
@@ -183,4 +188,4 @@ if __name__ == '__main__':
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
-    main()
+    main(in_files)
