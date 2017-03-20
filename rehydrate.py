@@ -1,6 +1,5 @@
 import csv
 import os
-from typing import Dict, List, Set, Tuple
 
 import toml
 from twarc import Twarc
@@ -12,7 +11,7 @@ secrets_path = 'secrets.toml'
 twarc = None
 
 
-def file_root_name(full_name: str) -> str:
+def file_root_name(full_name):
     """
     Returns the name of the file without the extension.
     Example: folder/id5.txt -> id5
@@ -21,7 +20,7 @@ def file_root_name(full_name: str) -> str:
     return os.path.splitext(file_name)[0]
 
 
-def generate_out_file_name(file_root: str) -> str:
+def generate_out_file_name(file_root):
     """
     File roots are of the form 'bth_ids_%y-%m-%d'. This method simply returns the date portion with '.csv' added at the
     end.
@@ -30,7 +29,7 @@ def generate_out_file_name(file_root: str) -> str:
     return os.path.join(out_dir, name + '.csv')
 
 
-def find_remaining_ids(in_file_name: str, out_file_name: str) -> Tuple[bool, Set]:
+def find_remaining_ids(in_file_name, out_file_name):
     """
     Find all the tweets that have not yet been hydrated.
 
@@ -63,7 +62,7 @@ def find_remaining_ids(in_file_name: str, out_file_name: str) -> Tuple[bool, Set
     return True, sorted(all_ids - finished_ids)
 
 
-def flush_rows(out_file_name: str, rows: List[List[str]]) -> None:
+def flush_rows(out_file_name, rows):
     """
     Write all the tweets contained in `rows` to `out_file_name`, then clear `rows`.
     """
@@ -76,17 +75,17 @@ def flush_rows(out_file_name: str, rows: List[List[str]]) -> None:
     rows.clear()
 
 
-def print_hydration_status(iteration: int, total_tweets: int) -> None:
+def print_hydration_status(iteration, total_tweets):
     percent = float(iteration) / total_tweets * 100
     print('Written {} out of {} tweets ({:.1f}%).'.format(iteration, total_tweets, percent))
 
 
-def read_secrets() -> Dict[str, str]:
+def read_secrets():
     with open(secrets_path, 'r') as file:
         return toml.loads(file.read())
 
 
-def hydrate_file(file_root: str) -> None:
+def hydrate_file(file_root):
     """
     Given the name of the file containing tweet ids, attempt to download the tweets and their associated metadata, then
     store the results in a csv file. Only some of the fields returned by the Twitter API are written; for a list of
@@ -151,7 +150,7 @@ def hydrate_file(file_root: str) -> None:
     os.rename(out_file_path, out_file_path.rstrip('.tmp'))
 
 
-def main() -> None:
+def main():
     """
     Go through every file in the in_dir and try to rehydrate them. This will take a while.
     """
