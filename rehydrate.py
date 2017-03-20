@@ -1,5 +1,6 @@
 import csv
 import os
+from io import open
 
 import toml
 from twarc import Twarc
@@ -109,8 +110,8 @@ def hydrate_file(file_root):
 
     if not file_exists:
         print('Hydrating {}'.format(file_root))
-        column_names = ['retweet_count', 'favorite_count', 'text', 'id', 'created_at', 'lang', 'is_quote_status',
-                        'user_id', 'user_name', 'user_screen_name']
+        column_names = [u'retweet_count', u'favorite_count', u'text', u'id', u'created_at', u'lang', u'is_quote_status',
+                        u'user_id', u'user_name', u'user_screen_name']
 
         with open(out_file_path, 'w', newline='\n', encoding='utf-8') as out_file:
             writer = csv.writer(out_file)
