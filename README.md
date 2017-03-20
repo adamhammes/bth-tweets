@@ -47,6 +47,8 @@ The account information/tokens you need are under the "Keys and Access Tokens" t
 
 ## Usage
 
+If at any point in this process you get lost or are struggling, please [file an issue](https://github.com/adamhammes/bth-tweets/issues/new).
+
 Download the repo and change directory to it by running
 
 ```
@@ -79,6 +81,7 @@ Finally, run the program with
 $ python rehydrate.py
 ```
 
-If the program crashes at any point, please file an issue with the stacktrace and I'll look into it.
-
 Re-running the program will resume hydration from where it was previously stopped.
+
+If the program crashes at any point, please [file an issue](https://github.com/adamhammes/bth-tweets/issues/new) with the stacktrace and I'll look into it.
+
