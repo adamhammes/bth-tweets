@@ -163,7 +163,7 @@ if __name__ == '__main__':
     if not os.path.isdir(in_dir):
         os.makedirs(in_dir)
 
-    in_files = [file for file in os.listdir(in_dir) if file.endswith('.txt')]
+    in_files = sorted([file for file in os.listdir(in_dir) if file.endswith('.txt')])
 
     if len(in_files) < 365:
         print('ERROR: Didn\'t find the expected number of id files in {}.'.format(in_dir))
