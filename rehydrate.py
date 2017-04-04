@@ -128,8 +128,8 @@ def hydrate_file(file_root):
             'coordinate_x',
             'coordinate_y',
             'user_id',
-            'user_name'
-            'user_screen_name'
+            'user_name',
+            'user_screen_name',
             'user_followers_count',
             'user_description',
             'user_geo_enabled',
