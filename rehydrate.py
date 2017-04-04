@@ -62,6 +62,14 @@ def find_remaining_ids(in_file_name, out_file_name):
     return True, sorted(all_ids - finished_ids)
 
 
+def read_coordinates(tweet):
+    try:
+        node = tweet['user']['coordinates']
+        return node[0], node[1]
+    except KeyError:
+        return 'null', 'null'
+
+
 def flush_rows(out_file_name, rows):
     """
     Write all the tweets contained in `rows` to `out_file_name`, then clear `rows`.
@@ -109,8 +117,25 @@ def hydrate_file(file_root):
 
     if not file_exists:
         print('Hydrating {}'.format(file_root))
-        column_names = ['retweet_count', 'favorite_count', 'text', 'id', 'created_at', 'lang', 'is_quote_status',
-                        'user_id', 'user_name', 'user_screen_name']
+        column_names = [
+            'retweet_count',
+            'favorite_count',
+            'text',
+            'id',
+            'created_at',
+            'lang',
+            'is_quote_status',
+            'coordinate_x',
+            'coordinate_y',
+            'user_id',
+            'user_name'
+            'user_screen_name'
+            'user_followers_count',
+            'user_description',
+            'user_geo_enabled',
+            'user_location',
+            'user_time_zone'
+        ]
 
         with open(out_file_path, 'w', newline='\n', encoding='utf-8') as out_file:
             writer = csv.writer(out_file)
@@ -127,6 +152,9 @@ def hydrate_file(file_root):
 
     for tweet in twarc.hydrate(remaining_ids):
         iteration += 1
+
+        x_coord, y_coord = read_coordinates(tweet)
+
         rows.append([
             tweet['retweet_count'],
             tweet['favorite_count'],
@@ -135,9 +163,16 @@ def hydrate_file(file_root):
             tweet['created_at'],
             tweet['lang'],
             tweet['is_quote_status'],
+            x_coord,
+            y_coord,
             tweet['user']['id'],
             tweet['user']['name'],
-            tweet['user']['screen_name']
+            tweet['user']['screen_name'],
+            tweet['user']['followers_count'],
+            tweet['user']['description'],
+            tweet['user']['geo_enabled'],
+            tweet['user']['location'],
+            tweet['user']['time_zone']
         ])
 
         if iteration % rows_before_flushing == 0:
